@@ -8,7 +8,7 @@
 
 #define PORT 6666
 #define BUFFER_SIZE 1024
-
+const char* Username;
 int sock = 0;
 GtkWidget *message_entry, *chat_view, *username_entry, *password_entry;
 GtkTextBuffer *chat_buffer;
@@ -21,6 +21,7 @@ void *receive_messages(void *arg);
 void on_login_button_clicked(GtkWidget *widget, gpointer data) {
     const char *username = gtk_entry_get_text(GTK_ENTRY(username_entry));
     const char *password = gtk_entry_get_text(GTK_ENTRY(password_entry));
+    Username = username;
     
     if (strlen(username) == 0 || strlen(password) == 0) {
         GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "Username or Password cannot be empty.");
@@ -35,13 +36,14 @@ void on_login_button_clicked(GtkWidget *widget, gpointer data) {
 }
 
 void on_send_button_clicked(GtkWidget *widget, gpointer data) {
+    char tempMessage[1024];
     const char *message = gtk_entry_get_text(GTK_ENTRY(message_entry));
     
     if (strlen(message) == 0) {
         return;
     }
-    
-    send(sock, message, strlen(message), 0);
+    sprintf(tempMessage , "%s: %s" , Username ,message);
+    send(sock, tempMessage, strlen(tempMessage), 0);
     gtk_entry_set_text(GTK_ENTRY(message_entry), "");
 }
 
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
     // 创建主窗口
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Chat Client");
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 300);
+    gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     // 创建网格布局
@@ -115,22 +117,22 @@ int main(int argc, char *argv[]) {
     g_signal_connect(login_button, "clicked", G_CALLBACK(on_login_button_clicked), NULL);
     gtk_grid_attach(GTK_GRID(grid), login_button, 2, 0, 1, 1);
 
+    // 创建消息输入框
+    message_entry = gtk_entry_new();
+    gtk_grid_attach(GTK_GRID(grid), message_entry, 0, 1, 2, 1);
+
+    // 创建发送按钮
+    GtkWidget *send_button = gtk_button_new_with_label("Send");
+    g_signal_connect(send_button, "clicked", G_CALLBACK(on_send_button_clicked), NULL);
+    gtk_grid_attach(GTK_GRID(grid), send_button, 2, 1, 1, 1);
+
     // 创建聊天显示区域
     chat_view = gtk_text_view_new();
     gtk_text_view_set_editable(GTK_TEXT_VIEW(chat_view), FALSE);
     chat_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chat_view));
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scrolled_window), chat_view);
-    gtk_grid_attach(GTK_GRID(grid), scrolled_window, 0, 1, 3, 1);
-
-    // 创建消息输入框
-    message_entry = gtk_entry_new();
-    gtk_grid_attach(GTK_GRID(grid), message_entry, 0, 2, 2, 1);
-
-    // 创建发送按钮
-    GtkWidget *send_button = gtk_button_new_with_label("Send");
-    g_signal_connect(send_button, "clicked", G_CALLBACK(on_send_button_clicked), NULL);
-    gtk_grid_attach(GTK_GRID(grid), send_button, 2, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), scrolled_window, 0, 2, 3, 3);
 
     // 创建并启动接收消息的线程
     pthread_create(&recv_thread, NULL, receive_messages, NULL);
